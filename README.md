@@ -13,8 +13,12 @@ Varations subsets are extracted from the 1000genomes browser ().
 Examples of regions selections
 
 6:133017695-133161157 => 3481 variations
+
 6:133017695-133031157 =>  292 variations
+
 6:133017695-133019157 =>   41 variations
+
 6:133017695-133017814 =>    5 variations
+
 
 VCF files are obtained from the 1000genomes data browser at http://browser.1000genomes.org/Homo_sapiens/Info/Index
