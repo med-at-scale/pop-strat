@@ -94,6 +94,9 @@ object Main extends App {
 
       gts
     } else {
+      import org.bdgenomics.adam.predicates._
+      //val gts:RDD[Genotype] = sparkContext.adamLoad(output, Some(classOf[GenotypePopulationPredicate]))
+      // instead filter the RDD[Genotype] here?
       val gts:RDD[Genotype] = sparkContext.adamLoad(output)
       gts
     }).cache
