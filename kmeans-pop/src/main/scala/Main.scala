@@ -54,7 +54,7 @@ object Main extends App {
 
   val sparkContext: SparkContext = ADAMContext.createSparkContext(
                                         "kmeans-pop",
-                                        "local[4]",
+                                        "local[6]",
                                         "",
                                         sparkJars = Seq.empty[String],
                                         sparkEnvVars = Seq.empty[(String, String)],
@@ -95,9 +95,9 @@ object Main extends App {
       gts
     } else {
       import org.bdgenomics.adam.predicates._
-      //val gts:RDD[Genotype] = sparkContext.adamLoad(output, Some(classOf[GenotypePopulationPredicate]))
+      val gts:RDD[Genotype] = sparkContext.adamLoad(output, Some(classOf[GenotypePopulationPredicate]))
       // instead filter the RDD[Genotype] here?
-      val gts:RDD[Genotype] = sparkContext.adamLoad(output)
+      //val gts:RDD[Genotype] = sparkContext.adamLoad(output)
       gts
     }).cache
   println(s"Number of genotypes found ${gts.count}")
