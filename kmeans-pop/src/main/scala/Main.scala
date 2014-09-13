@@ -26,6 +26,8 @@ import Implicits._
 import scala.collection.JavaConversions._
 
 object Main extends App {
+  import GlobalSparkContext._
+
   val file::output::rest = args.toList
   val hdfsUrl = rest.headOption
 
@@ -52,7 +54,7 @@ object Main extends App {
   //val printMetics = true
   //val metricsListener = if (printMetics) Some(new ADAMMetricsListener(new ADAMMetrics())) else None
 
-  val sparkContext: SparkContext = ADAMContext.createSparkContext(
+/*  val sparkContext: SparkContext = ADAMContext.createSparkContext(
                                         "kmeans-pop",
                                         "local[6]",
                                         "",
@@ -62,7 +64,7 @@ object Main extends App {
                                         sparkKryoBufferSize = 4,
                                         sparkMetricsListener = None /*Option[ADAMMetricsListener]*/,
                                         loadSystemValues = true,
-                                        sparkDriverPort = None)
+                                        sparkDriverPort = None)*/
 
   val outputExists = Try {
                     val fs = FileSystem.get(new java.net.URI(hdfsUrl.get), sparkContext.hadoopConfiguration)

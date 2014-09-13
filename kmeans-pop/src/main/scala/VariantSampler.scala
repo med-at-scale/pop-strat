@@ -6,6 +6,7 @@ import scala.util.Try
 
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
+import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.mllib.clustering.{KMeans, KMeansModel}
 import org.apache.spark.mllib.linalg.{Vector=>MLVector, Vectors}
@@ -25,15 +26,19 @@ import org.bdgenomics.adam.rdd.ADAMContext
 import Implicits._
 import scala.collection.JavaConversions._
 
+
+
 object VariantSampler extends App {
+  import GlobalSparkContext._
+
   val input::output::fractStr::rest = args.toList
   val hdfsUrl = rest.headOption
 
   val fraction = fractStr.toDouble
 
-  val sparkContext: SparkContext = ADAMContext.createSparkContext(
+ /* val sparkContext: SparkContext = ADAMContext.createSparkContext(
                                         "variant-sampler",
-                                        "local[6]",
+                                        "local[4]",
                                         "",
                                         sparkJars = Seq.empty[String],
                                         sparkEnvVars = Seq.empty[(String, String)],
@@ -42,6 +47,7 @@ object VariantSampler extends App {
                                         sparkMetricsListener = None /*Option[ADAMMetricsListener]*/,
                                         loadSystemValues = true,
                                         sparkDriverPort = None)
+*/
   val gts:RDD[Genotype] = sparkContext.adamLoad(input)
 
   val sampledGts = gts.filter(elt => scala.util.Random.nextDouble <= fraction)
