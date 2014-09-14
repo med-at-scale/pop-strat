@@ -31,30 +31,18 @@ import scala.collection.JavaConversions._
 object VariantSampler extends App {
   import GlobalSparkContext._
 
-  val input::output::fractStr::rest = args.toList
-  val hdfsUrl = rest.headOption
+  val input::output::startStr::endStr::rest = args.toList
 
-  val fraction = fractStr.toDouble
-
- /* val sparkContext: SparkContext = ADAMContext.createSparkContext(
-                                        "variant-sampler",
-                                        "local[4]",
-                                        "",
-                                        sparkJars = Seq.empty[String],
-                                        sparkEnvVars = Seq.empty[(String, String)],
-                                        sparkAddStatsListener = false,
-                                        sparkKryoBufferSize = 4,
-                                        sparkMetricsListener = None /*Option[ADAMMetricsListener]*/,
-                                        loadSystemValues = true,
-                                        sparkDriverPort = None)
-*/
+  val start = startStr.toLong
+  val end = endStr.toLong
+  
   val gts:RDD[Genotype] = sparkContext.adamLoad(input)
 
-  val sampledGts = gts.filter(elt => scala.util.Random.nextDouble <= fraction)
+  val sampledGts = gts.filter(g => g.getVariant.getStart <= start && g.getVariant.getEnd >= end)
 
 
   sampledGts.adamSave(output)
   println("Converted file created and written!")
-  println(s"Number of genotypes: ${sampledGts.count}")
+//  println(s"Number of genotypes: ${sampledGts.count}")
 
 }
