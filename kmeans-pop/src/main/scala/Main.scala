@@ -26,45 +26,23 @@ import Implicits._
 import scala.collection.JavaConversions._
 
 object Main extends App {
+
   import GlobalSparkContext._
 
-  val file::output::rest = args.toList
+  val file::output::panelFileName::rest = args.toList
   val hdfsUrl = rest.headOption
 
-  /*val sampleSubset:Option[Set[String]] = None
-  val vcfReader = new VCFLineParser(new FileInputStream(new File(file)), sampleSubset)
+  // populations to select
+  val pops = Set("GBR","AWS")
 
-  vcfReader foreach {
-    case vcfLine: VCFLine =>
-      VCFLineConverter.convert(vcfLine).foreach {
-        case genotype: FlatGenotype =>
-        // here is where we assign each ADAMFlatGenotype to an output file
-        println(s"""
-          Gen [${genotype.getSampleId.toString}]:
-            * ${genotype.variantId}
-            * ${genotype.getReferenceName}
-            * ${genotype.getPosition}
-            * ${genotype.getReferenceAllele}
-            * ${genotype.getAlleles.mkString(",")}
-            * ${genotype.asDouble}
-        """)
-      }
-  }*/
+  // number of clusters we want
+  val k = 2
 
-  //val printMetics = true
-  //val metricsListener = if (printMetics) Some(new ADAMMetricsListener(new ADAMMetrics())) else None
+  // panel extract from file, filtering by the 2 populations
+  val panel = Panel.extract(panelFileName)((sampleID: String, pop: String) => pops.contains(pop))
 
-/*  val sparkContext: SparkContext = ADAMContext.createSparkContext(
-                                        "kmeans-pop",
-                                        "local[6]",
-                                        "",
-                                        sparkJars = Seq.empty[String],
-                                        sparkEnvVars = Seq.empty[(String, String)],
-                                        sparkAddStatsListener = false,
-                                        sparkKryoBufferSize = 4,
-                                        sparkMetricsListener = None /*Option[ADAMMetricsListener]*/,
-                                        loadSystemValues = true,
-                                        sparkDriverPort = None)*/
+// broadcast the panel 
+  val bPanel = sparkContext.broadcast(panel)
 
   val outputExists = Try {
                     val fs = FileSystem.get(new java.net.URI(hdfsUrl.get), sparkContext.hadoopConfiguration)
@@ -97,11 +75,14 @@ object Main extends App {
       gts
     } else {
       import org.bdgenomics.adam.predicates._
-      val gts:RDD[Genotype] = sparkContext.adamLoad(output, Some(classOf[GenotypePopulationPredicate]))
+      //val gts:RDD[Genotype] = sparkContext.adamLoad(output, Some(classOf[GenotypePopulationPredicate]))
+      //  .filter(g => panel.contains(g.sampleID))
       // instead filter the RDD[Genotype] here?
-      //val gts:RDD[Genotype] = sparkContext.adamLoad(output)
+      val gts:RDD[Genotype] = sparkContext.adamLoad(output)
+
       gts
-    }).cache
+    }).filter(g => panel.contains(g.getSampleId)).cache
+
   println(s"Number of genotypes found ${gts.count}")
 
   val sampleCount = gts.map(_.getSampleId.toString.hashCode).distinct.count
@@ -150,7 +131,7 @@ object Main extends App {
 
   dataPerSampleId.collect().foreach { case (sampleId, vector) =>
     val cluster = model.predict(vector)
-    println(s"Sample [$sampleId] is in cluster #$cluster")
+    println(s"Sample [$sampleId] is in cluster #$cluster for population $panel(sampleId)")
   }
 
 }
