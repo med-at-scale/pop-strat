@@ -17,7 +17,9 @@
 # limitations under the License.
 #
 MAINCLASS=$1
+echo $@
 shift
+echo $@
 
 # Figure out where ADAM is installed
 ADAM_REPO="$(cd `dirname $0`/..; pwd)"
@@ -36,15 +38,15 @@ fi
 
 # submit the job to Spark
 #echo "$SPARK_SUBMIT" \
-#  "$ADAM_CLI_JAR" \
 #  --class $MAINCLASS \
 #  --properties-file "$ADAM_REPO"/bin/adam-spark-defaults.conf \
 #  --jars "$ADAM_JARS" \
-#  "$@"
+#  "$ADAM_CLI_JAR" \
+#"$@"
 
 "$SPARK_SUBMIT" \
-  "$ADAM_CLI_JAR" \
   --class $MAINCLASS \
   --properties-file "$ADAM_REPO"/bin/adam-spark-defaults.conf \
   --jars "$ADAM_JARS" \
+  "$ADAM_CLI_JAR" \
   "$@"

@@ -1,6 +1,3 @@
-import AssemblyKeys._
-
-assemblySettings
 
 scalaVersion := "2.10.4"
 
@@ -12,7 +9,3 @@ libraryDependencies ++= Seq(
 )
 
 
-excludedJars in assembly <<= (fullClasspath in assembly) map { cp => 
-  cp.filter(_.data.getName == "spark-mllib_2.10.jar")
-  .filter {_.data.getName == "spark-core_2.10-1.0.0.jar" }
-}
