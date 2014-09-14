@@ -31,7 +31,7 @@ object Main {
 def main(args: Array[String]) {
   import GlobalSparkContext._
 
-  val file::output::panelFileName::rest = args.toList
+  val file::output::modelDir::panelFileName::rest = args.toList
   val hdfsUrl = rest.headOption
 
   // populations to select
@@ -97,10 +97,22 @@ def main(args: Array[String]) {
   val variantsById = gts.keyBy(_.variantId.hashCode).groupByKey.cache
   val variantsCount = variantsById.keys.count
   println(s"#Variants: $variantsCount")
-  val missingVariants = variantsById.filter { case (k, it) =>
+
+  val missingVariantsRDD = variantsById.filter { case (k, it) =>
                                       it.size != sampleCount
-                                    }.keys.collect().toSet
+                                    }.keys
+  // saving the list of variants with missing genotypes (because cannot be used for prediction later)
+  // it is a list of Int (variantId.hashCode)                              
+  missingVariantsRDD.saveAsObjectFile(modelDir + "/missing-variants")
+  // saving the list of all variants 
+  // (diff with missing-variants is the list of vatiants to be used for prediction)
+  // it is a list of Int (variantId.hashCode)                              
+  variantsById.keys.saveAsObjectFile(modelDir + "/all-variants")
+
+  val missingVariants = missingVariantsRDD.collect().toSet
+
   println(s"#Missing $missingVariants")
+
 
   type VariantHashCode = Int
   val sampleToData:RDD[(String, (Double, VariantHashCode))] =
@@ -130,9 +142,17 @@ def main(args: Array[String]) {
   val centroids = model.clusterCenters.map { center => center.toArray.toList }
   centroids map (c => println(s" > ${c.mkString(" ; ")}"))
 
+  val modelRDD: RDD[KMeansModel] = sparkContext.parallelize(List[KMeansModel](model))
+  modelRDD.saveAsObjectFile(modelDir + "/kMeansModel")
+
+  val predictionsRDD: RDD[(String, (Int, String))] = dataPerSampleId.map(elt => {
+    (elt._1, ( model.predict(elt._2), bPanel.value.get(elt._1))) 
+    })
+  predictionsRDD.saveAsObjectFile(modelDir + "/predictions")
+
   dataPerSampleId.collect().foreach { case (sampleId, vector) =>
     val cluster = model.predict(vector)
-    println(s"Sample [$sampleId] is in cluster #$cluster for population $panel(sampleId)")
+    println(s"Sample [$sampleId] is in cluster #$cluster for population ${panel.get(sampleId)}")
   }
 }
 }

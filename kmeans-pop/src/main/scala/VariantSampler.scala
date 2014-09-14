@@ -35,10 +35,10 @@ object VariantSampler extends App {
 
   val start = startStr.toLong
   val end = endStr.toLong
-  
+
   val gts:RDD[Genotype] = sparkContext.adamLoad(input)
 
-  val sampledGts = gts.filter(g => g.getVariant.getStart <= start && g.getVariant.getEnd >= end)
+  val sampledGts = gts.filter(g => start <= g.getVariant.getStart  && g.getVariant.getEnd <= end)
 
 
   sampledGts.adamSave(output)
