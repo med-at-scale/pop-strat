@@ -16,13 +16,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+# Figure out where ADAM is installed
+ADAM_REPO="$(cd `dirname $0`/..; pwd)"
+
 MAINCLASS=$1
 echo $@
 shift
 echo $@
-
-# Figure out where ADAM is installed
-ADAM_REPO="$(cd `dirname $0`/..; pwd)"
 
 CLASSPATH=$("$ADAM_HOME"/bin/compute-adam-classpath.sh)
 ADAM_JARS=$("$ADAM_HOME"/bin/compute-adam-jars.sh)

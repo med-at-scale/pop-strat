@@ -1,5 +1,7 @@
 package medatscale
 
+import scala.collection.JavaConversions._
+
 import java.io.{ File, FileInputStream }
 import scala.util.Try
 
@@ -25,22 +27,21 @@ import org.bdgenomics.adam.rdd.ADAMContext
 import Implicits._
 import scala.collection.JavaConversions._
 
-object Main extends App {
-
+object Main {
+def main(args: Array[String]) {
   import GlobalSparkContext._
 
   val file::output::panelFileName::rest = args.toList
   val hdfsUrl = rest.headOption
 
   // populations to select
-  val pops = Set("GBR","AWS")
+  val pops = Set("GBR","ASW")
 
   // number of clusters we want
   val k = 2
 
   // panel extract from file, filtering by the 2 populations
-  val panel = Panel.extract(panelFileName)((sampleID: String, pop: String) => pops.contains(pop))
-
+  val panel: java.util.Map[String,String] = mapAsJavaMap(Panel.extract(panelFileName)((sampleID: String, pop: String) => pops.contains(pop)))
 // broadcast the panel 
   val bPanel = sparkContext.broadcast(panel)
 
@@ -81,7 +82,7 @@ object Main extends App {
       val gts:RDD[Genotype] = sparkContext.adamLoad(output)
 
       gts
-    }).filter(g => bPanel.value.contains(g.getSampleId)).cache
+    }).filter(g =>  bPanel.value.containsKey(g.getSampleId)).cache
 
   println(s"Number of genotypes found ${gts.count}")
 
@@ -133,5 +134,5 @@ object Main extends App {
     val cluster = model.predict(vector)
     println(s"Sample [$sampleId] is in cluster #$cluster for population $panel(sampleId)")
   }
-
+}
 }
