@@ -81,7 +81,7 @@ object Main extends App {
       val gts:RDD[Genotype] = sparkContext.adamLoad(output)
 
       gts
-    }).filter(g => panel.contains(g.getSampleId)).cache
+    }).filter(g => bPanel.value.contains(g.getSampleId)).cache
 
   println(s"Number of genotypes found ${gts.count}")
 
