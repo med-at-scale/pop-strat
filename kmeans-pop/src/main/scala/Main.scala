@@ -91,7 +91,7 @@ def main(args: Array[String]) {
 
   @transient val variantIds:Set[String] = gts.map(_.variantId).distinct.collect().toSet
   println("Variants:")
-  variantIds foreach println
+//  variantIds foreach println
   //val variantIdsSize = variantIds.size
 
   val variantsById = gts.keyBy(_.variantId.hashCode).groupByKey.cache
@@ -130,7 +130,7 @@ def main(args: Array[String]) {
 
   val dataFrameSizes = dataFrame.map(_.size).collect()
   println("Vector sizes:")
-  dataFrameSizes foreach (x => println(" > " + x))
+//  dataFrameSizes foreach (x => println(" > " + x))
 
   val kmeansStart = System.nanoTime
   println("About to run the KMeans: " + kmeansStart)
