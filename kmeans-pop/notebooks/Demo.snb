@@ -1,0 +1,140 @@
+{
+  "metadata":{
+    "name":"Demo",
+    "user_save_timestamp":"2014-09-14T21:37:47.650Z",
+    "auto_save_timestamp":"2014-09-14T21:31:42.707Z"
+  },
+  "worksheets":[{
+    "cells":[{
+      "cell_type":"markdown",
+      "source":"# Lightning-fast genomics with Med@Scale and ADAM (Berkeley)"
+    },{
+      "cell_type":"code",
+      "input":"  import org.bdgenomics.adam.models.VariantContext\n  import org.bdgenomics.adam.rdd.ADAMContext._\n  import org.bdgenomics.adam.rdd.variation.ADAMVariationContext._\n  import org.bdgenomics.adam.rdd.ADAMContext\n  import org.bdgenomics.formats.avro.{Genotype, FlatGenotype, GenotypeAllele}\n  import org.apache.spark.rdd.RDD\n  import org.apache.spark.SparkContext._\n  import org.apache.spark.mllib.clustering.{KMeans, KMeansModel}\n  import org.apache.spark.mllib.linalg.{Vector=>MLVector, Vectors}",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":71,
+      "outputs":[]
+    },{
+      "cell_type":"code",
+      "input":"def hu(s:String) = s\"hdfs://ec2-54-77-227-155.eu-west-1.compute.amazonaws.com:9010/data/$s\"\n  \ndef ul[A](xs:List[A], f:A=>String) = <ul>{xs.map(x => <li>{x}</li>)}</ul>",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":72,
+      "outputs":[]
+    },{
+      "cell_type":"code",
+      "input":"val panel = {\n  val p = sparkContext.textFile(hu(\"ALL.panel\"))\n  p.map{ line => \n    val toks = line.split(\"\\t\").toList\n    toks(0) -> toks(1)\n  }.collectAsMap\n}\n()",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":73,
+      "outputs":[]
+    },{
+      "cell_type":"markdown",
+      "source":"### Fetch the original data and cache it."
+    },{
+      "cell_type":"code",
+      "input":"val original = {\n  val genotypesFile = \"hdfs://ec2-54-77-227-155.eu-west-1.compute.amazonaws.com:9010/data/chr6-20101123.adam\"\n  val genotypes:RDD[Genotype] = sparkContext.adamLoad(genotypesFile, None)\n  genotypes.cache\n}",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":74,
+      "outputs":[]
+    },{
+      "cell_type":"markdown",
+      "source":"### Let's sample the data to run the model faster"
+    },{
+      "cell_type":"code",
+      "input":"val sampled = {\n  val create = false\n  if (create) {\n    val start = 0\n    val end = 1.5e6\n    val sampled = original.filter(g => start <= g.getVariant.getStart && g.getVariant.getEnd <= end)\n  \n    println(\"saving sampled\")\n    sampled.adamSave(hu(\"chr6-20101123-1-1500000.adam\"))\n    sampled\n  } else {\n  \tval sampled:RDD[Genotype] = sparkContext.adamLoad(hu(\"chr6-20101123-1-1500000.adam\"), None)\n    sampled\n  }.cache\n}\n",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":75,
+      "outputs":[]
+    },{
+      "cell_type":"markdown",
+      "source":"### Count data in the sample"
+    },{
+      "cell_type":"code",
+      "input":"<strong>There are <span style=\"color: red\">{sampled.count()}</span> genotypes in the dataset.</strong>",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":76,
+      "outputs":[]
+    },{
+      "cell_type":"markdown",
+      "source":"### Let's train the model and compute some predictions"
+    },{
+      "cell_type":"code",
+      "input":"val keptVariantsBc = {\n  // A/ load variants list on hdfs\n  val variants:RDD[Int] = sparkContext.objectFile(hu(\"models/kMeans-GBR-ASW/all-variants\"))\n  \n  // B/ load missing variants list on hdfs\n  val missingVariants:RDD[Int] = sparkContext.objectFile(hu(\"models/kMeans-GBR-ASW/missing-variants\"))\n  \n  // C/ {A\\B}\n  val keptVariants = variants.subtract(missingVariants).collect().toSet\n  val keptVariantsBc = sparkContext.broadcast(keptVariants)\n  keptVariantsBc\n}  \n",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":77,
+      "outputs":[]
+    },{
+      "cell_type":"code",
+      "input":"val model:KMeansModel = sparkContext.objectFile[KMeansModel](hu(\"models/kMeans-GBR-ASW/kMeansModel\")).collect().head\n()\n",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":78,
+      "outputs":[]
+    },{
+      "cell_type":"code",
+      "input":"def predict(sampleId:String) = {\n  // A/ load sample using sampleId on original file on hdfs\n  val sampleData:RDD[Genotype] = sampled.filter(_.getSampleId.toString == sampleId)\n  \n  // B/ Filter A using `keptVariantsBc`\n  val doubleRepAndVariantId:RDD[(Double, Int)] = \n    sampleData.map { g =>\n      val variantId:String = {\n        val name = g.getVariant.getContig.getContigName\n        val start = g.getVariant.getStart\n        val end = g.getVariant.getEnd\n        s\"$name:$start:$end\"\n      }\n      val asDouble = g.getAlleles.count(_ != GenotypeAllele.Ref)\n      (asDouble, variantId.hashCode)\n    }\n    \n  val removeIrrelevantVariants = doubleRepAndVariantId.filter { case (d, v) => \n                                                        val variants = keptVariantsBc.value\n                                                        variants contains v \n                                                      }\n                                                      .collect().toArray\n  \n  val orderedByVariants:MLVector = Vectors.dense(removeIrrelevantVariants.sortBy(_._2).map(_._1))\n  \n  // C/ Sort variants by variantId's hashCode\n  if (removeIrrelevantVariants.size != keptVariantsBc.value.size) {\n    <strong>Cannot predict: missing variants</strong>\n  } else {\n    // D/ Predict\n    val pop = panel(sampleId)\n    val predictedPop:Int = model.predict(orderedByVariants)\n    <strong>The sample {sampleId} from {pop} has been predicted as part of the cluster <span style=\"red\">{predictedPop}</span>!</strong>\n  }\n\n}\n\n\n",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":79,
+      "outputs":[]
+    },{
+      "cell_type":"markdown",
+      "source":"### The predictions are"
+    },{
+      "cell_type":"code",
+      "input":"val predictions = {\n  val p:RDD[(String, (Int, String))] = sparkContext.objectFile(hu(\"models/kMeans-GBR-ASW/predictions\"))\n  p.collect()\n}\n()",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":80,
+      "outputs":[]
+    },{
+      "cell_type":"code",
+      "input":"ul[(String, (Int, String))](predictions.toList.take(10), { case (sampleId, (cluster, pop)) => s\"$sampleId is in cluster $cluster ($pop)\"})",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":81,
+      "outputs":[]
+    },{
+      "cell_type":"markdown",
+      "source":"### Confusion matrix"
+    },{
+      "cell_type":"code",
+      "input":"val confusionMatrix = {\n  val m = predictions.toMap.values\n    .groupBy(_._2).mapValues(_.map(_._1))\n    .mapValues(xs => (xs.count(_ == 0), xs.count(_ == 1)))\n  <div>\n  <style><![CDATA[\n    #confusion {\n      border:1px solid black; \n      border-collapse: collapse; \n    }\n    #confusion td {\n      padding: 5px;\n    }]]>\n  </style>\n  <table id=\"confusion\">\n    <tr><td></td><td>#0</td><td>#1</td></tr>\n    {\n      m.map{ case (pop, (zero, one)) =>\n        <tr>\n          <td>{pop}</td>\n          <td style={if (zero > one) \"color: green\" else \"\"}>{zero}</td>\n          <td style={if (one > zero) \"color: green\" else \"\"}>{one}</td>\n        </tr>\n      }\n    }\n  </table>\n  </div>\n    \n}",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":82,
+      "outputs":[]
+    },{
+      "cell_type":"markdown",
+      "source":"### We can also predict in which cluster a sample will land"
+    },{
+      "cell_type":"code",
+      "input":"predict(panel.toList(250)._1)",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":83,
+      "outputs":[]
+    },{
+      "cell_type":"code",
+      "input":"// LWK => AFR\npredict(\"NA19457\")",
+      "language":"scala",
+      "collapsed":false,
+      "prompt_number":84,
+      "outputs":[]
+    },{
+      "cell_type":"code",
+      "input":"",
+      "language":"scala",
+      "collapsed":true,
+      "outputs":[]
+    }]
+  }],
+  "autosaved":[],
+  "nbformat":3
+}
