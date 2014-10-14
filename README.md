@@ -33,6 +33,13 @@ Need the deps on the rigth spark, in the `project/buill.scala` file:
       unmanagedJars in Compile  += file("/root/spark/lib/datanucleus-rdbms-3.2.1.jar"),
       unmanagedJars in Compile  += file("/root/spark/lib/spark-assembly-1.1.0-hadoop2.0.0-mr1-cdh4.2.0.jar")
 ```
+Also remove the other deps to spark to avoid any conflict
+```{scala}
+      //libraryDependencies ++= Seq(
+      //  sparkRepl,
+      //  sparkSQL
+      //),
+```
 
 In the notebook, import ADAM deps from `central` using
 ```{scala}
