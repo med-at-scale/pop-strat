@@ -17,13 +17,10 @@ object KMeansTrain {
 	/*
 	 dataFrame: The dataframe
 	 k: number of clusters
-	 modelDir is the model save directory (HDFS)
 	*/
-	def train(dataFrame :RDD[MLVector], k: Int, modelDir: String)(implicit hu: (String) => String, sc: SparkContext) = {
+	def train(dataFrame :RDD[MLVector], k: Int) = {
 
-		val model:KMeansModel = KMeans.train(dataFrame, 2, 10)
-		val modelRDD: RDD[KMeansModel] = sc.parallelize(List[KMeansModel](model))
-  		modelRDD.saveAsObjectFile(modelDir + "/kMeansModel")
+		val model:KMeansModel = KMeans.train(dataFrame, k, 10)
   		model
 	}
 
