@@ -19,7 +19,7 @@ object Panel {
 		sc.textFile(url).map(line => {
 			val toks = line.split("\t").toList
   			toks(0) -> toks(1)
-			}).collect.toMap
+			}).collect.toMap.filter( tup => filter(tup._1, tup._2) )
 	}
 
 }
