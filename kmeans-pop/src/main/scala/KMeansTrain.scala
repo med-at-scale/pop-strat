@@ -28,7 +28,7 @@ object KMeansTrain {
 	/*
 	Removes the missingVariants and creates a dataFrome for MLLib,
 	*/
-	def makeDataFrame(gts:RDD[Genotype], missingVariantsRDD: RDD[VariantHashCode]): RDD[MLVector] = {
+	def makeDataFrame(gts:RDD[Genotype], missingVariantsRDD: RDD[VariantHashCode]): RDD[(String, MLVector)] = {
 
 		val missingVariants = missingVariantsRDD.collect().toSet
   		val sampleToData: RDD[(String, (Double, VariantHashCode))] =
@@ -41,13 +41,13 @@ object KMeansTrain {
                                       Vectors.dense(it.toArray.sortBy(_._2).map(_._1))
                                     }
                                     .cache
-		dataPerSampleId.values
+		dataPerSampleId
 	}
 
 	/*
 	Returns (ALLVariants, MissingVairants)
 	*/
-	def filterIncompleteVariants(gts :RDD[Genotype], modelDir: String): (RDD[VariantHashCode], RDD[VariantHashCode]) = {
+	def filterIncompleteVariants(gts :RDD[Genotype]): (RDD[VariantHashCode], RDD[VariantHashCode]) = {
 		@transient val variantIds: Set[String] = gts.map(_.variantId).distinct.collect().toSet
 		//##############
 
